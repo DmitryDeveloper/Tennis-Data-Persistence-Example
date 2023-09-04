@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.IO; //for seriliazation
 
 public class MainManager : MonoBehaviour
 {
@@ -11,6 +12,7 @@ public class MainManager : MonoBehaviour
     public Rigidbody Ball;
 
     public Text ScoreText;
+    public Text BestScoreText;
     public GameObject GameOverText;
     
     private bool m_Started = false;
@@ -18,6 +20,15 @@ public class MainManager : MonoBehaviour
     
     private bool m_GameOver = false;
 
+    public static string CurrentUserName = "";
+    public static string BestScoreUserName = "";
+    public static int BestScoreResult = 0;
+
+    private void Awake()
+    {
+        //fetch saved data from file during initialization of game
+        LoadBestScoreData();
+    }
     
     // Start is called before the first frame update
     void Start()
@@ -36,6 +47,9 @@ public class MainManager : MonoBehaviour
                 brick.onDestroyed.AddListener(AddPoint);
             }
         }
+
+        BestScoreText.text = $"Best Score : {BestScoreUserName} : {BestScoreResult}";
+        ScoreText.text = $"Score : {m_Points} : Player: {CurrentUserName}";
     }
 
     private void Update()
@@ -65,12 +79,49 @@ public class MainManager : MonoBehaviour
     void AddPoint(int point)
     {
         m_Points += point;
-        ScoreText.text = $"Score : {m_Points}";
+        ScoreText.text = $"Score : {m_Points} : Player: {CurrentUserName}";
     }
 
     public void GameOver()
     {
         m_GameOver = true;
         GameOverText.SetActive(true);
+
+        //TODO check best score
+        if (BestScoreResult < m_Points) {
+            SaveCurrentPlayerScore();
+        }
+    }
+
+    [System.Serializable] //it's needed for JsonUtility
+    class SaveBestScoreData
+    {
+        public string BestPlayerName;
+        public int BestScore;
+    }
+
+    public void SaveCurrentPlayerScore()
+    {
+        SaveBestScoreData data = new SaveBestScoreData();
+        data.BestPlayerName = CurrentUserName;
+        data.BestScore = m_Points;
+
+        string json = JsonUtility.ToJson(data);
+    
+        File.WriteAllText(Application.persistentDataPath + "/savefile.json", json);
+    }
+
+    public static void LoadBestScoreData()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveBestScoreData data = JsonUtility.FromJson<SaveBestScoreData>(json);
+
+            BestScoreUserName = data.BestPlayerName;
+            BestScoreResult = data.BestScore;
+        }
     }
 }
